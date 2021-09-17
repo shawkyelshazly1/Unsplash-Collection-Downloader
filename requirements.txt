@@ -12,6 +12,7 @@ pycodestyle==2.7.0
 requests==2.26.0
 selenium==3.141.0
 soupsieve==2.2.1
+tk==0.1.0
 toml==0.10.2
 tqdm==4.62.2
 urllib3==1.26.6
