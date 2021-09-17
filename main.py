@@ -1,4 +1,3 @@
-from re import T
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 import time
@@ -9,8 +8,8 @@ from bs4 import BeautifulSoup as bs
 import itertools
 import threading
 import sys
-import requests
-
+from tkinter import filedialog, constants, Tk
+import urllib.request
 
 # URL = input(
 #     'Please enter the url for the collection you want to download, starting with https://www.:   ')
@@ -30,17 +29,53 @@ def loading_animation():
 t = threading.Thread(target=loading_animation)
 
 
+URL = 'https://unsplash.com/collections/8946027/moto'
+image_size = input(
+    'Please select the image size [S,M,L,(O)Original]: ').lower()
+
+while image_size not in ['s', 'm', 'l', 'o']:
+    image_size = input(
+        'Please select the image size [S,M,L,(O)Original]: ').lower()
+
+root = Tk()
+root.directory = filedialog.askdirectory()
+save_path = root.directory
+root.destroy()
+
+
 t.start()
 
-URL = 'https://unsplash.com/collections/1522571/winter'
 options = webdriver.ChromeOptions()
 # options.add_argument('headless')
 
 driver = webdriver.Chrome(
     ChromeDriverManager().install(), options=options)
 
+photos_links = {}
+
+
+def grap_links():
+    source = driver.page_source
+
+    soup = bs(source, 'lxml')
+
+    for a in soup.find_all('a', {'title': 'Download photo'}):
+        if a['href'] in photos_links:
+            pass
+        else:
+            photos_links[a['href']] = 0
+
 
 driver.get(URL)
+
+photos_count = 0
+
+source = driver.page_source
+soup = bs(source, 'lxml')
+spans = soup.find('div', {'class': '_2sKzG _2sCnE PrOBO _1CR66'}).children
+for span in spans:
+    texts = span.text.split()
+    photos_count = int(texts[0])
 
 wait = WebDriverWait(driver, 10)
 
@@ -53,42 +88,47 @@ driver.execute_script("""
 """)
 
 
-driver.execute_script(
-    "window.scrollTo(0, (document.body.scrollHeight/2));")
-
-time.sleep(3)
-
 element = wait.until(EC.presence_of_element_located(
     (By.XPATH, '//*[@id="app"]/div/div[6]/div/button')))
 
+grap_links()
+
 element.click()
 
-time.sleep(1)
 
-SCROLL_PAUSE_TIME = 0.5
-
-# Get scroll height
-last_height = driver.execute_script("return document.body.scrollHeight-2000")
+SCROLL_PAUSE_TIME = 0.2
 
 
 while True:
-    # Scroll down to bottom
-    driver.execute_script(
-        "window.scrollTo(0, (document.body.scrollHeight-4000));")
+    grap_links()
 
-    # Wait to load page
+    driver.execute_script("""
+        window.scrollBy(0,500)
+    """)
     time.sleep(SCROLL_PAUSE_TIME)
 
-    new_height = driver.execute_script(
-        "return document.body.scrollHeight-4000")
-    if new_height == last_height:
+    if len(photos_links) == photos_count:
         break
-    last_height = new_height
 
 
-source = driver.page_source
-soup = bs(source, 'lxml')
-for a in soup.find_all('a', {'title': 'Download photo'}):
-    pass
+driver.close()
+
+
+def download_photo(link, image_size, file_name):
+
+    if image_size == 's':
+        urllib.request.urlretrieve(link+'&w=640', save_path + "/"+file_name)
+    elif image_size == 'm':
+        urllib.request.urlretrieve(link+'&w=1920', save_path + "/"+file_name)
+    elif image_size == 'l':
+        urllib.request.urlretrieve(link+'&w=2400', save_path + "/"+file_name)
+    elif image_size == 'o':
+        urllib.request.urlretrieve(link, save_path + "/"+file_name)
+
+
+counter = 1
+for link in photos_links:
+    download_photo(link, image_size, "photo_"+str(counter))
+    counter += 1
 
 done = True
